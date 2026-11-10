@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robot packing cell</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ground: #e3e5e1;
+    --panel: #f4f5f2;
+    --sunk: #d6d9d4;
+    --ink: #1e2226;
+    --ink-soft: #565c63;
+    --run: #2e8540;
+    --wait: #c98400;
+    --alarm: #c0392b;
+    --off: #b9bdb7;
+    --display: "Barlow Semi Condensed", "Arial Narrow", "Segoe UI", sans-serif;
+    --body: "Atkinson Hyperlegible", "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--body); font-size: 15px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  header.bar { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding: 10px 20px; background: #2b3036; color: #eef0ec; }
+  header h1 { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: .02em; margin: 0; }
+  header h1 small { font-weight: 500; font-size: 15px; color: #aab1b8; margin-left: 10px; letter-spacing: 0; }
+  .links { display: flex; gap: 10px; margin-left: auto; flex-wrap: wrap; }
+  .link { display: flex; align-items: center; gap: 8px; padding: 5px 12px; border: 1px solid #4a5159; border-radius: 2px; font-size: 13px; }
+  .link i { width: 10px; height: 10px; border-radius: 50%; background: var(--alarm); box-shadow: 0 0 0 2px #2b3036; }
+  .link.up i { background: #47b35f; }
+  .link b { font-family: var(--display); font-weight: 600; font-size: 15px; }
+  .link span { color: #aab1b8; }
+  #offline { display: none; padding: 8px 20px; background: var(--alarm); color: #fff; font-weight: 700; }
+  #offline.show { display: block; }
+
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; padding: 16px 20px 24px; align-items: start; }
+  @media (max-width: 1150px) { main { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) { main { padding: 12px 16px 20px; } }
+
+  .mimic { background: var(--panel); border: 1px solid #c4c8c2; border-radius: 2px; padding: 6px; }
+  .mimic svg { display: block; width: 100%; height: auto; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 8px 8px 4px; font-size: 13px; color: var(--ink-soft); }
+  .legend b { color: var(--ink); font-family: var(--display); font-weight: 600; font-size: 14px; }
+
+  .below { display: grid; grid-template-columns: 1.25fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 900px) { .below { grid-template-columns: 1fr; } }
+
+  h2 { font-family: var(--display); font-weight: 600; font-size: 17px; letter-spacing: .03em; text-transform: uppercase; margin: 0 0 10px; color: var(--ink-soft); }
+  .box { background: var(--panel); border: 1px solid #c4c8c2; border-radius: 2px; padding: 14px 16px; }
+
+  /* signals */
+  .io { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; }
+  @media (max-width: 520px) { .io { grid-template-columns: 1fr; } .io h3, .io .dir { grid-column: auto; } }
+  .io h3 { grid-column: span 2; font-family: var(--display); font-weight: 600; font-size: 14px; margin: 8px 0 2px; color: var(--ink-soft); }
+  .io h3:first-child { margin-top: 0; }
+  .io .dir { grid-column: span 2; font-size: 12px; color: var(--ink-soft); margin: -2px 0 4px; }
+  .sig { display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 8px; font-size: 13px; padding: 1px 0; }
+  .sig i { width: 12px; height: 12px; border-radius: 50%; background: var(--off); border: 1px solid #9ca19b; }
+  .sig.on i { background: var(--run); border-color: #1f5e2c; }
+  .sig.on.red i { background: var(--alarm); border-color: #84261c; }
+  .sig.on.amber i { background: var(--wait); border-color: #8a5b00; }
+  .sig code { font-family: var(--display); font-size: 13px; color: var(--ink-soft); }
+  .sig.reg i { border-radius: 2px; background: #cfd8e3; border-color: #8ea3bb; }
+  .sig.reg b { font-variant-numeric: tabular-nums; }
+
+  /* results */
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .tile { background: var(--sunk); border-radius: 2px; padding: 8px 10px; }
+  .tile b { display: block; font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1.1; }
+  .tile span { font-size: 12px; color: var(--ink-soft); }
+  .score { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 12px; }
+  .score td { padding: 3px 0; border-bottom: 1px solid #dfe2dd; }
+  .score td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .score tr.bad td:last-child { color: var(--alarm); }
+  .events { list-style: none; margin: 0; padding: 0; font-size: 13px; min-height: 120px; }
+  .events li { padding: 3px 0; border-bottom: 1px dashed #d3d6d1; font-variant-numeric: tabular-nums; }
+  .events li:first-child { font-weight: 700; }
+  .events li.empty { color: var(--ink-soft); border: 0; }
+
+  /* operator side */
+  aside { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 12px; }
+  @media (max-width: 1150px) { aside { position: static; } }
+  .group { background: #3a4047; color: #eef0ec; border-radius: 4px; padding: 14px 16px 16px; }
+  .group h2 { color: #c9ced3; }
+  .group h2 em { font-style: normal; font-weight: 500; color: #9aa2aa; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+  .buttons { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+  .pb { display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: .04em; color: #dfe3e6; }
+  .pb button { width: 54px; height: 54px; border-radius: 50%; border: 4px solid #22262b; cursor: pointer; box-shadow: inset 0 -5px 0 rgba(0,0,0,.25), 0 2px 0 #1b1e22; touch-action: none; }
+  .pb button:active, .pb button.held { box-shadow: inset 0 3px 0 rgba(0,0,0,.3); transform: translateY(2px); }
+  .pb button:focus-visible, .key:focus-visible, .wide:focus-visible { outline: 3px solid #f3d36b; outline-offset: 2px; }
+  .pb.green button { background: #2f9a4a; }
+  .pb.red button { background: #cc3b2d; }
+  .pb.blue button { background: #2f6fb0; }
+  .pb.estop button { width: 64px; height: 64px; background: #d22d1e; border: 6px solid #f0c419; }
+  .pb.estop button.pressed { transform: translateY(4px); box-shadow: inset 0 4px 0 rgba(0,0,0,.35); background: #9b2015; }
+  .switches { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .key { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 7px 10px; border-radius: 6px; border: 1px solid #626a73; background: #2b3036; color: #9aa2aa; font-family: var(--display); font-weight: 600; font-size: 13px; cursor: pointer; }
+  .key span.on { color: #f3d36b; }
+  .key i { width: 26px; height: 26px; border-radius: 50%; background: #c9ced3; border: 3px solid #22262b; position: relative; transition: transform .15s; }
+  .key i::after { content: ""; position: absolute; left: 50%; top: 2px; width: 4px; height: 9px; margin-left: -2px; background: #22262b; border-radius: 2px; }
+  .key.remote i { transform: rotate(45deg); }
+  .key:not(.remote) i { transform: rotate(-45deg); }
+  .wide { padding: 7px 10px; border-radius: 6px; border: 1px solid #626a73; background: #4c535b; color: #eef0ec; font-family: var(--body); font-size: 13px; cursor: pointer; }
+  .wide.warn { background: #6b4d1e; border-color: #e0a800; }
+  .lamps { display: flex; gap: 14px; margin-top: 12px; font-size: 13px; flex-wrap: wrap; align-items: center; }
+  .lamp { display: flex; align-items: center; gap: 6px; }
+  .lamp i { width: 14px; height: 14px; border-radius: 50%; background: #5b6168; border: 1px solid #22262b; }
+  .lamp.on.green i { background: #46c062; }
+  .lamp.on.amber i { background: #f0b429; }
+  .lamp.on.red i { background: #e2523f; }
+  .lamp.on.buzz i { background: #f3d36b; box-shadow: 0 0 0 3px rgba(243,211,107,.35); }
+  .sound { margin-left: auto; display: flex; align-items: center; gap: 6px; color: #c9ced3; }
+  .sound input { accent-color: #e0a800; }
+  .chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .chip { text-align: center; font-family: var(--display); font-weight: 600; font-size: 12px; letter-spacing: .03em; padding: 5px 2px; border-radius: 4px; background: #2b3036; color: #7f8790; border: 1px solid #4a5159; }
+  .chip.on { background: #2e6b3c; color: #eef0ec; border-color: #47b35f; }
+  .chip.on.red { background: #7a2a20; border-color: #e2523f; }
+  .rows { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; font-size: 13px; }
+  .rows dt { color: #aab1b8; }
+  .rows dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .rows dd b { font-family: var(--display); font-size: 15px; }
+  .rows dd span { color: #aab1b8; }
+  .notes { list-style: none; margin: 10px 0 0; padding: 0; font-size: 12.5px; color: #f3d36b; }
+  .notes li { padding: 3px 0 3px 10px; border-left: 3px solid #e0a800; margin-top: 4px; }
+  .row { display: flex; align-items: center; gap: 10px; margin-top: 4px; font-size: 13px; }
+  .row label { flex: 0 0 auto; color: #c9ced3; }
+  .row input[type=range] { flex: 1; accent-color: #9fb7cf; }
+  .row output { width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+  .small { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .small button { font-family: var(--body); font-size: 13px; padding: 6px 10px; border-radius: 6px; cursor: pointer; background: #4c535b; color: #eef0ec; border: 1px solid #626a73; }
+  .small button:hover, .wide:hover { background: #59616a; }
+  .small button:focus-visible { outline: 3px solid #f3d36b; outline-offset: 1px; }
+  .small button.armed { border-color: #e0a800; background: #4d4630; }
+  .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+  .toggle { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid #626a73; border-radius: 6px; font-size: 13px; cursor: pointer; user-select: none; }
+  .toggle input { accent-color: #e0a800; width: 16px; height: 16px; margin: 0; }
+  .toggle.active { border-color: #e0a800; background: #4d4630; }
+  .sub { font-family: var(--display); font-weight: 600; font-size: 13px; color: #9aa2aa; letter-spacing: .03em; margin: 12px 0 0; }
+  .hint { font-size: 12px; color: #aab1b8; margin: 10px 0 0; line-height: 1.4; }
+
+  /* svg text */
+  .lbl { font-family: var(--display); font-weight: 600; font-size: 15px; fill: var(--ink); letter-spacing: .04em; }
+  .lbl-w { font-family: var(--display); font-weight: 600; font-size: 13px; fill: #dfe3e6; letter-spacing: .04em; }
+  .lbl-s { font-family: var(--body); font-size: 12px; fill: var(--ink-soft); }
+  .pos { font-family: var(--display); font-weight: 700; font-size: 13px; fill: #2f6fb0; }
+  .slotno { font-family: var(--display); font-weight: 600; font-size: 11px; fill: #7a5a35; }
+  .big { font-family: var(--display); font-weight: 700; font-size: 22px; fill: var(--ink); }
+  .tag { font-family: var(--display); font-weight: 600; font-size: 13px; }
+  .banner { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: .06em; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <h1>Robot packing cell<small>run by your OpenPLC program</small></h1>
+  <div class="links">
+    <div class="link" id="link"><i></i><b>RobotIO</b><span class="num" id="link-text">port 5022, waiting for PLC</span></div>
+  </div>
+</header>
+<div id="offline">The simulator program is not running. Start robot_server.py again (double-click Start Robot.bat).</div>
+
+<main>
+  <div>
+    <section class="mimic">
+      <svg id="cell" viewBox="0 0 1100 640" role="img" aria-label="Live top view of the robot packing cell">
+        <defs>
+          <clipPath id="clip-infeed"><rect id="clip-infeed-r"/></clipPath>
+          <clipPath id="clip-outfeed"><rect id="clip-outfeed-r"/></clipPath>
+          <clipPath id="clip-takeaway"><rect id="clip-takeaway-r"/></clipPath>
+        </defs>
+
+        <!-- safety fence with the guard door in the top side -->
+        <path d="M560 105 H370 V595 H930 V105 H680" fill="none" stroke="#c98400" stroke-width="4" stroke-dasharray="14 7"/>
+        <line id="door" x1="560" y1="105" x2="680" y2="105" stroke="#8a5b00" stroke-width="7" stroke-linecap="round"/>
+        <circle cx="560" cy="105" r="5" fill="#3b4046"/>
+        <text class="lbl-s" x="620" y="96" text-anchor="middle">guard door</text>
+
+        <!-- conveyors are filled in by buildStatic() -->
+        <g id="belts"></g>
+
+        <!-- camera over the pick stop -->
+        <polygon id="flash" points="444,142 456,142 474,222 426,222" fill="#f3d36b" opacity=".5" visibility="hidden"/>
+        <rect x="428" y="118" width="44" height="24" rx="3" fill="#3b4046"/>
+        <circle cx="450" cy="142" r="6" fill="#8a9097" stroke="#3b4046" stroke-width="2"/>
+        <text class="lbl" x="420" y="134" text-anchor="end">CAMERA</text>
+        <text id="cam-result" class="tag" x="482" y="128"></text>
+        <text id="cam-code" class="lbl-s num" x="482" y="144"></text>
+
+        <!-- reject bin -->
+        <rect id="bin-fill" fill="#e8b4ae"/>
+        <rect id="bin-box" fill="none" stroke="#c0392b" stroke-width="3"/>
+        <g id="bin-items"></g>
+        <text id="bin-count" class="big num" text-anchor="middle">0</text>
+
+        <!-- robot base and reach -->
+        <circle id="reach" fill="none" stroke="#c4c8c2" stroke-width="1.5" stroke-dasharray="3 6"/>
+        <g id="markers"></g>
+        <circle id="base" r="40" fill="#5b6168" stroke="#22262b" stroke-width="3"/>
+
+        <!-- moving things -->
+        <g id="cartons"></g>
+        <g id="products"></g>
+        <g id="floor"></g>
+        <g id="ghost"></g>
+        <circle id="shadow" fill="#000" opacity=".16"/>
+        <line id="arm1" stroke="#7b838b" stroke-width="30" stroke-linecap="round"/>
+        <line id="arm2" stroke="#9aa2aa" stroke-width="22" stroke-linecap="round"/>
+        <circle id="elbow" r="13" fill="#3b4046"/>
+        <circle id="base-cap" r="16" fill="#3b4046" stroke="#22262b" stroke-width="2"/>
+        <g id="held"></g>
+        <circle id="gripper" stroke="#22262b" stroke-width="3"/>
+        <text class="lbl" id="robot-lbl" text-anchor="end">ROBOT</text>
+
+        <!-- stack light and buzzer -->
+        <circle id="sl-red" cx="1052" cy="40" r="12" stroke="#3b4046" stroke-width="2"/>
+        <circle id="sl-amber" cx="1052" cy="66" r="12" stroke="#3b4046" stroke-width="2"/>
+        <circle id="sl-green" cx="1052" cy="92" r="12" stroke="#3b4046" stroke-width="2"/>
+        <text class="lbl-s" x="1032" y="70" text-anchor="end">stack light</text>
+        <circle id="buzz" cx="1052" cy="126" r="9" stroke="#3b4046" stroke-width="2"/>
+        <text class="lbl-s" x="1032" y="130" text-anchor="end">buzzer</text>
+
+        <!-- big message -->
+        <text id="banner" class="banner" x="650" y="44" text-anchor="middle"></text>
+        <text id="banner-sub" class="lbl-s" x="650" y="66" text-anchor="middle"></text>
+      </svg>
+      <div class="legend">
+        <span><b>Positions</b> 0 Home · 1 Pick · 11–19 carton slots (row by row from the top-left) · 20 Reject bin</span>
+        <span><b>Products</b> blue with a white ring = good · no ring = no label · dark notch = dent · orange = wrong colour</span>
+      </div>
+    </section>
+
+    <div class="below">
+      <section class="box">
+        <h2>Signals</h2>
+        <div class="io" id="io"></div>
+      </section>
+      <section class="box">
+        <h2>Results</h2>
+        <div class="tiles">
+          <div class="tile"><b class="num" id="t-carton">0/6</b><span>in the carton at the pack station</span></div>
+          <div class="tile"><b class="num" id="t-shipped">0</b><span>cartons shipped</span></div>
+          <div class="tile"><b class="num" id="t-rate">0</b><span>products packed per minute</span></div>
+        </div>
+        <table class="score">
+          <tr><td>Good products packed</td><td id="s-good">0</td></tr>
+          <tr><td>Bad products rejected</td><td id="s-rej">0</td></tr>
+          <tr class="bad"><td>Bad products packed (PLC mistake)</td><td id="s-badpack">0</td></tr>
+          <tr class="bad"><td>Good products rejected (PLC mistake)</td><td id="s-goodrej">0</td></tr>
+          <tr class="bad"><td>Two products in one slot (PLC mistake)</td><td id="s-double">0</td></tr>
+          <tr class="bad"><td>Cartons shipped not full (PLC mistake)</td><td id="s-short">0</td></tr>
+          <tr class="bad"><td>Products on the floor</td><td id="s-drop">0</td></tr>
+        </table>
+        <h2>Events</h2>
+        <ul class="events" id="events"><li class="empty">Nothing yet. Start the PLC program.</li></ul>
+      </section>
+    </div>
+  </div>
+
+  <aside>
+    <section class="group">
+      <h2>Local operator panel<em>at the cell</em></h2>
+      <div class="buttons">
+        <div class="pb green"><button data-hold="PB_START" aria-label="Start"></button>START</div>
+        <div class="pb red"><button data-hold="PB_STOP" aria-label="Stop"></button>STOP</div>
+        <div class="pb blue"><button data-hold="PB_RESET" aria-label="Reset"></button>RESET</div>
+        <div class="pb estop"><button id="estop" aria-label="Emergency stop" aria-pressed="false"></button>E-STOP</div>
+      </div>
+      <div class="switches">
+        <button class="key" id="key" aria-pressed="false" aria-label="Local or remote key switch"><span id="key-local" class="on">LOCAL</span><i></i><span id="key-remote">REMOTE</span></button>
+        <button class="wide" id="door-btn">Open guard door</button>
+      </div>
+      <div class="lamps">
+        <div class="lamp green" id="lamp-green"><i></i>GREEN</div>
+        <div class="lamp amber" id="lamp-amber"><i></i>AMBER</div>
+        <div class="lamp red" id="lamp-red"><i></i>RED</div>
+        <div class="lamp buzz" id="lamp-buzz"><i></i>BUZZER</div>
+        <label class="sound"><input type="checkbox" id="sound">sound</label>
+      </div>
+      <p class="hint">Hold a push button down like a real one. The E-stop latches: click it again to release it. LOCAL = these buttons are in charge, REMOTE = the SCADA (CODESYS) is.</p>
+    </section>
+
+    <section class="group">
+      <h2>Robot controller</h2>
+      <div class="chips">
+        <div class="chip" id="c-ready">READY</div>
+        <div class="chip" id="c-busy">BUSY</div>
+        <div class="chip" id="c-done">DONE</div>
+        <div class="chip" id="c-home">HOME</div>
+        <div class="chip red" id="c-fault">FAULT</div>
+      </div>
+      <dl class="rows">
+        <dt>ROBOT_TARGET</dt><dd><b id="r-target">0</b> <span id="r-target-name"></span></dd>
+        <dt>ROBOT_POS</dt><dd><b id="r-pos">0</b> <span id="r-pos-name"></span></dd>
+        <dt>ROBOT_SPEED</dt><dd><b id="r-speed">0</b> <span id="r-speed-used"></span></dd>
+        <dt>PATTERN</dt><dd><b id="r-pattern">0</b> <span id="r-pattern-used"></span></dd>
+        <dt>Vacuum</dt><dd id="r-vacuum">off</dd>
+        <dt>Fault</dt><dd id="r-fault">none</dd>
+      </dl>
+      <ul class="notes" id="notes"></ul>
+      <p class="hint">A move starts on the rising edge of ROBOT_GO: BUSY comes on at once and the robot reads ROBOT_TARGET 0.2 s later. Keep GO on until DONE; DONE goes off when GO goes off. After a fault, the PLC pulses ROBOT_RESET.</p>
+    </section>
+
+    <section class="group">
+      <h2>Faults and defects</h2>
+      <div class="row"><label for="defects">Products with a defect</label><input id="defects" type="range" min="0" max="50" value="10"><output id="defects-out" class="num">10 %</output></div>
+      <p class="sub">Next product arrives with</p>
+      <div class="small" id="next-defect">
+        <button data-cmd="next_defect" data-value="1">a dent</button>
+        <button data-cmd="next_defect" data-value="2">no label</button>
+        <button data-cmd="next_defect" data-value="3">wrong colour</button>
+      </div>
+      <div class="toggles">
+        <label class="toggle" id="tg-vacuum_leak"><input type="checkbox" data-fault="vacuum_leak">Vacuum leak</label>
+        <label class="toggle" id="tg-camera_dead"><input type="checkbox" data-fault="camera_dead">Camera dead</label>
+        <label class="toggle" id="tg-no_cartons"><input type="checkbox" data-fault="no_cartons">Out of cartons</label>
+        <label class="toggle" id="tg-starve"><input type="checkbox" data-fault="starve">No products</label>
+      </div>
+      <div class="small">
+        <button data-cmd="servo_fault">Robot servo fault</button>
+        <button data-cmd="drop_next" id="drop-btn">Drop the next product</button>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2>By hand<em>maintenance</em></h2>
+      <div class="small">
+        <button data-cmd="empty_bin">Empty reject bin</button>
+        <button data-cmd="clear_floor">Clean the floor</button>
+        <button data-cmd="take_from_gripper">Take product off gripper</button>
+        <button data-cmd="remove_at_pick">Remove product at pick</button>
+        <button data-cmd="reset_score">Reset results</button>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const C = { dark: "#3b4046", belt: "#3b4046", take: "#4f565e", stripe: "#5b6168", good: "#2f6fb0", wrong: "#d9822b",
+            run: "#2e8540", wait: "#c98400", alarm: "#c0392b", off: "#b9bdb7", carton: "#c49a6c", cartonIn: "#dcc09a",
+            cartonEdge: "#7a5a35", ring: "#eef3f8" };
+let G = null;
+let S = null;
+
+const IO = [
+  { title: "Inputs", dir: "simulator → PLC (FC2)", kind: "inputs", items: [
+    ["ESTOP_OK", "%IX0.0"], ["DOOR_CLOSED", "%IX0.1"], ["PB_START", "%IX0.2"], ["PB_STOP", "%IX0.3"],
+    ["PB_RESET", "%IX0.4"], ["SEL_REMOTE", "%IX0.5", "amber"], ["PRODUCT_AT_PICK", "%IX0.6"], ["CAMERA_DONE", "%IX0.7"],
+    ["CAMERA_PASS", "%IX1.0"], ["ROBOT_READY", "%IX1.1"], ["ROBOT_BUSY", "%IX1.2", "amber"], ["ROBOT_DONE", "%IX1.3"],
+    ["ROBOT_AT_HOME", "%IX1.4"], ["ROBOT_FAULT", "%IX1.5", "red"], ["VACUUM_OK", "%IX1.6"], ["CARTON_AT_PACK", "%IX1.7"],
+    ["CARTON_OUT", "%IX2.0"]] },
+  { title: "Input registers", dir: "simulator → PLC, numbers (FC4)", kind: "registers", reg: true, items: [
+    ["ROBOT_POS", "%IW0"], ["ROBOT_ANGLE", "%IW1"], ["ROBOT_REACH", "%IW2"], ["CAMERA_CODE", "%IW3"]] },
+  { title: "Coils", dir: "PLC → simulator (FC15)", kind: "coils", items: [
+    ["INFEED_RUN", "%QX0.0"], ["OUTFEED_RUN", "%QX0.1"], ["CAMERA_TRIGGER", "%QX0.2"], ["ROBOT_ENABLE", "%QX0.3"],
+    ["ROBOT_GO", "%QX0.4"], ["ROBOT_RESET", "%QX0.5"], ["VACUUM_ON", "%QX0.6"], ["LAMP_GREEN", "%QX0.7"],
+    ["LAMP_AMBER", "%QX1.0", "amber"], ["LAMP_RED", "%QX1.1", "red"], ["BUZZER", "%QX1.2", "amber"]] },
+  { title: "Holding registers", dir: "PLC → simulator, numbers (FC16)", kind: "holding", reg: true, items: [
+    ["ROBOT_TARGET", "%QW0"], ["ROBOT_SPEED", "%QW1"], ["PATTERN", "%QW2"]] },
+];
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function setAttrs(e, attrs) { for (const k in attrs) e.setAttribute(k, attrs[k]); }
+function text(parent, x, y, cls, str, anchor) {
+  const t = el("text", { x, y, class: cls, "text-anchor": anchor || "start" }, parent);
+  t.textContent = str;
+  return t;
+}
+const $ = id => document.getElementById(id);
+
+function send(body) {
+  return fetch("/cmd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    .catch(() => {});
+}
+
+function posName(n, pattern) {
+  if (n === 0) return "Home";
+  if (n === 1) return "Pick";
+  if (n === 20) return "Reject bin";
+  if (n === G.moving) return "moving / not at a position";
+  if (n >= 11 && n <= 10 + pattern) return "carton slot " + (n - 10);
+  return "not a position";
+}
+
+function slotPoint(pattern, slot, cx) {
+  const [cols, rows] = G.grids[pattern];
+  const col = (slot - 1) % cols, row = Math.floor((slot - 1) / cols);
+  return [cx + (col - (cols - 1) / 2) * G.pitch, G.carton.y + (row - (rows - 1) / 2) * G.pitch];
+}
+
+/* ---------- parts that never move ---------- */
+function belt(parent, id, x0, x1, y, w, fill) {
+  setAttrs($("clip-" + id + "-r"), { x: x0, y: y - w / 2, width: x1 - x0, height: w });
+  el("rect", { x: x0, y: y - w / 2, width: x1 - x0, height: w, fill }, parent);
+  const g = el("g", { "clip-path": "url(#clip-" + id + ")" }, parent);
+  const s = el("g", { id: "stripes-" + id }, g);
+  for (let x = x0 - 24; x <= x1 + 24; x += 24) {
+    el("line", { x1: x, y1: y - w / 2 + 3, x2: x, y2: y + w / 2 - 3, stroke: C.stripe, "stroke-width": 2 }, s);
+  }
+}
+
+function buildStatic() {
+  const b = $("belts");
+  const inf = G.infeed, ct = G.carton;
+  belt(b, "infeed", inf.x0, inf.x1, inf.y, inf.w, C.belt);
+  el("rect", { x: inf.x1, y: inf.y - inf.w / 2 - 6, width: 7, height: inf.w + 12, fill: C.dark }, b);
+  text(b, inf.x0 + 6, inf.y - inf.w / 2 - 10, "lbl", "INFEED  (INFEED_RUN)");
+  text(b, inf.x0 + 6, inf.y + inf.w / 2 + 18, "lbl-s", "products arrive from upstream  →");
+
+  const sep = ct.takeaway;
+  belt(b, "outfeed", ct.x0, sep, ct.y, ct.belt_w, C.belt);
+  belt(b, "takeaway", sep, ct.x1, ct.y, ct.belt_w, C.take);
+  el("line", { x1: sep, y1: ct.y - ct.belt_w / 2, x2: sep, y2: ct.y + ct.belt_w / 2, stroke: "#22262b", "stroke-width": 3 }, b);
+  text(b, ct.x0 + 6, ct.y - ct.belt_w / 2 - 8, "lbl", "CARTON CONVEYOR  (OUTFEED_RUN)");
+  text(b, sep + 8, ct.y - ct.belt_w / 2 - 8, "lbl", "TAKE-AWAY  (always running)");
+  text(b, ct.pack, ct.y + ct.belt_w / 2 + 18, "lbl", "PACK STATION", "middle");
+  text(b, ct.x1 - 4, ct.y + ct.belt_w / 2 + 18, "lbl", "EXIT", "end");
+  text(b, ct.x1 - 4, ct.y + ct.belt_w / 2 + 34, "lbl-s num", "", "end").id = "shipped";
+  const fx = ct.pack + ct.w / 2 + 3;
+  el("rect", { id: "stop1", x: fx, y: ct.y - ct.belt_w / 2 + 2, width: 8, height: 18, rx: 2 }, b);
+  el("rect", { id: "stop2", x: fx, y: ct.y + ct.belt_w / 2 - 20, width: 8, height: 18, rx: 2 }, b);
+
+  const [bw, bh] = G.bin, [rx, ry] = G.reject;
+  setAttrs($("bin-box"), { x: rx - bw / 2, y: ry - bh / 2, width: bw, height: bh });
+  setAttrs($("bin-count"), { x: rx, y: ry + bh / 2 + 22 });
+  text($("markers"), rx, ry - bh / 2 - 8, "pos", "20  REJECT BIN", "middle");
+
+  const m = $("markers");
+  const [hx, hy] = G.home;
+  el("path", { d: `M${hx - 8} ${hy} H${hx + 8} M${hx} ${hy - 8} V${hy + 8}`, stroke: "#2f6fb0", "stroke-width": 2 }, m);
+  text(m, hx + 12, hy - 8, "pos", "0  HOME");
+  text(m, G.pick[0] - 8, G.pick[1] + 46, "pos", "1  PICK", "middle");
+
+  setAttrs($("reach"), { cx: G.base[0], cy: G.base[1], r: G.arm1 + G.arm2 });
+  setAttrs($("base"), { cx: G.base[0], cy: G.base[1] });
+  setAttrs($("base-cap"), { cx: G.base[0], cy: G.base[1] });
+  setAttrs($("robot-lbl"), { x: G.base[0] - 50, y: G.base[1] + 34 });
+
+  const io = $("io");
+  for (const group of IO) {
+    const h = document.createElement("h3"); h.textContent = group.title; io.appendChild(h);
+    const d = document.createElement("div"); d.className = "dir"; d.textContent = group.dir; io.appendChild(d);
+    for (const [name, addr, tone] of group.items) {
+      const row = document.createElement("div");
+      row.className = "sig" + (group.reg ? " reg" : "") + (tone ? " " + tone : "");
+      row.id = "sig-" + name;
+      row.innerHTML = "<i></i><span></span><code></code>";
+      row.querySelector("span").textContent = name;
+      row.querySelector("code").textContent = addr;
+      if (group.reg) { const v = document.createElement("b"); v.className = "num"; row.querySelector("span").append(" = ", v); }
+      io.appendChild(row);
+    }
+  }
+}
+
+/* ---------- products and cartons ---------- */
+function drawProduct(parent, x, y, d, scale) {
+  const r = G.product_d / 2 * (scale || 1);
+  const g = el("g", {}, parent);
+  el("circle", { cx: x, cy: y, r, fill: d === 3 ? C.wrong : C.good, stroke: "#13283f", "stroke-width": 1.5 }, g);
+  if (d !== 2) el("circle", { cx: x, cy: y, r: r * 0.58, fill: "none", stroke: C.ring, "stroke-width": 3 }, g);
+  if (d === 1) el("path", { d: `M${x + r * 0.35} ${y - r} L${x + r * 0.15} ${y - r * 0.45} L${x + r * 0.75} ${y - r * 0.6} Z`, fill: "#1b1e22" }, g);
+  return g;
+}
+
+function drawCarton(parent, k, atPack) {
+  const h = G.carton.w / 2, y = G.carton.y;
+  const g = el("g", {}, parent);
+  el("rect", { x: k.x - h, y: y - h, width: 2 * h, height: 2 * h, rx: 2, fill: C.carton, stroke: C.cartonEdge, "stroke-width": 2 }, g);
+  el("rect", { x: k.x - h + 7, y: y - h + 7, width: 2 * h - 14, height: 2 * h - 14, fill: C.cartonIn }, g);
+  for (let slot = 1; slot <= k.pattern; slot++) {
+    const [sx, sy] = slotPoint(k.pattern, slot, k.x);
+    el("circle", { cx: sx, cy: sy, r: 16, fill: "none", stroke: "#a98257", "stroke-width": 1.2, "stroke-dasharray": "3 3" }, g);
+    if (atPack) text(g, sx, sy + 4, "slotno", String(slot + 10), "middle");
+  }
+  for (const [slot, defects] of k.slots) {
+    const [sx, sy] = slotPoint(k.pattern, slot, k.x);
+    defects.forEach((d, i) => drawProduct(g, sx + i * 4, sy - i * 4, d, 0.9));
+    if (defects.length > 1) {
+      el("circle", { cx: sx, cy: sy, r: 19, fill: "none", stroke: C.alarm, "stroke-width": 3 }, g);
+      text(g, sx + 14, sy - 14, "tag", "×" + defects.length).setAttribute("fill", C.alarm);
+    }
+  }
+  text(g, k.x - h + 2, y - h - 7, "lbl-w num", `carton ${k.n}   ${k.count}/${k.pattern}`);
+}
+
+/* ---------- every frame ---------- */
+function setLamp(id, on) { $(id).classList.toggle("on", !!on); }
+
+function render(s) {
+  S = s;
+  const inp = s.inputs, co = s.coils, rb = s.robot;
+
+  $("link").classList.toggle("up", s.link.up);
+  $("link-text").textContent = s.link.up
+    ? `port ${s.link.port}, PLC connected (${s.link.requests} requests)`
+    : `port ${s.link.port}, waiting for PLC`;
+
+  // banner
+  let title = "", sub = "", color = C.dark;
+  if (s.panel.estop) { title = "E-STOP"; sub = "Release the E-stop, then the PLC resets the robot (ROBOT_RESET)"; color = C.alarm; }
+  else if (!s.link.up) { title = "PLC NOT CONNECTED"; sub = "Start the OpenPLC runtime. Without the PLC every output is OFF."; color = "#565c63"; }
+  else if (rb.fault) { title = "ROBOT FAULT"; sub = rb.fault + ". The PLC must pulse ROBOT_RESET."; color = C.alarm; }
+  else if (!s.panel.door_closed) { title = "GUARD DOOR OPEN"; sub = "The robot is stopped (protective stop)"; color = C.wait; }
+  $("banner").textContent = title; $("banner").setAttribute("fill", color); $("banner-sub").textContent = sub;
+
+  // belts
+  $("stripes-infeed").setAttribute("transform", `translate(${s.offsets.infeed} 0)`);
+  $("stripes-outfeed").setAttribute("transform", `translate(${s.offsets.outfeed} 0)`);
+  $("stripes-takeaway").setAttribute("transform", `translate(${s.offsets.takeaway} 0)`);
+  for (const id of ["stop1", "stop2"]) $(id).setAttribute("fill", s.stop_up ? C.alarm : C.off);
+  $("shipped").textContent = `shipped: ${s.score.shipped}`;
+
+  // door
+  $("door").setAttribute("transform", s.panel.door_closed ? "" : "rotate(65 560 105)");
+
+  // cartons
+  const cg = $("cartons"); cg.replaceChildren();
+  for (const k of s.cartons) drawCarton(cg, k, s.pack && k.n === s.pack.n);
+
+  // products on the infeed and on the floor
+  const pg = $("products"); pg.replaceChildren();
+  for (const p of s.products) drawProduct(pg, p.x, p.y, p.d);
+  const fg = $("floor"); fg.replaceChildren();
+  for (const p of s.floor) {
+    const g = drawProduct(fg, p.x, p.y, p.d, 0.9); g.setAttribute("opacity", ".55");
+    el("path", { d: `M${p.x - 9} ${p.y - 9} L${p.x + 9} ${p.y + 9} M${p.x + 9} ${p.y - 9} L${p.x - 9} ${p.y + 9}`, stroke: C.alarm, "stroke-width": 3 }, fg);
+  }
+
+  // reject bin
+  const [bw, bh] = G.bin, [rx, ry] = G.reject;
+  const fill = Math.min(1, s.bin.length / G.bin_size) * (bh - 4);
+  setAttrs($("bin-fill"), { x: rx - bw / 2 + 2, y: ry + bh / 2 - 2 - fill, width: bw - 4, height: fill });
+  const bi = $("bin-items"); bi.replaceChildren();
+  s.bin.slice(-6).forEach((d, i) => drawProduct(bi, rx - 30 + (i % 3) * 30, ry - 16 + Math.floor(i / 3) * 30, d, 0.7));
+  $("bin-count").textContent = `${s.bin.length} / ${G.bin_size}`;
+
+  // camera
+  $("flash").setAttribute("visibility", s.camera.scanning ? "visible" : "hidden");
+  const cr = $("cam-result");
+  if (inp.CAMERA_DONE) {
+    const code = s.registers.CAMERA_CODE;
+    cr.textContent = inp.CAMERA_PASS ? "PASS" : code === G.no_product ? "NO PRODUCT" : "FAIL: " + (G.defects[code] || "?");
+    cr.setAttribute("fill", inp.CAMERA_PASS ? C.run : C.alarm);
+  } else if (s.camera.scanning) {
+    cr.textContent = s.camera.dead ? "no answer…" : "checking…"; cr.setAttribute("fill", "#565c63");
+  } else { cr.textContent = ""; }
+  $("cam-code").textContent = co.CAMERA_TRIGGER ? `CAMERA_CODE = ${s.registers.CAMERA_CODE}` : s.camera.last;
+
+  // robot
+  const [bx, by] = G.base, [ex, ey] = rb.elbow, [tx, ty] = rb.tool;
+  const up = 1 - rb.z, gr = 12 + 8 * up;
+  setAttrs($("arm1"), { x1: bx, y1: by, x2: ex, y2: ey });
+  setAttrs($("arm2"), { x1: ex, y1: ey, x2: tx, y2: ty });
+  setAttrs($("elbow"), { cx: ex, cy: ey });
+  setAttrs($("shadow"), { cx: tx + 12 * up, cy: ty + 12 * up, r: gr });
+  setAttrs($("gripper"), { cx: tx, cy: ty, r: gr, fill: co.VACUUM_ON ? (inp.VACUUM_OK ? "#46c062" : "#f0b429") : "#5b6168" });
+  const hg = $("held"); hg.replaceChildren();
+  if (rb.held) drawProduct(hg, tx, ty, rb.held.d, 1 + 0.25 * up);
+  const gh = $("ghost"); gh.replaceChildren();
+  if (rb.moving_to) {
+    const mt = rb.moving_to;
+    el("circle", { cx: mt.x, cy: mt.y, r: 22, fill: "none", stroke: "#2f6fb0", "stroke-width": 2, "stroke-dasharray": "5 4" }, gh);
+    text(gh, mt.x + 24, mt.y - 18, "pos", "→ " + mt.target);
+  }
+
+  // stack light and buzzer
+  $("sl-red").setAttribute("fill", co.LAMP_RED ? "#e2523f" : "#e9d3cf");
+  $("sl-amber").setAttribute("fill", co.LAMP_AMBER ? "#f0b429" : "#efe3c4");
+  $("sl-green").setAttribute("fill", co.LAMP_GREEN ? "#46c062" : "#d2e3d4");
+  $("buzz").setAttribute("fill", co.BUZZER && Math.floor(s.t * 4) % 2 ? "#f3d36b" : "#d6d9d4");
+  setLamp("lamp-green", co.LAMP_GREEN); setLamp("lamp-amber", co.LAMP_AMBER);
+  setLamp("lamp-red", co.LAMP_RED); setLamp("lamp-buzz", co.BUZZER);
+  buzzer(co.BUZZER);
+
+  // signals
+  for (const group of IO) {
+    for (const [name] of group.items) {
+      const row = $("sig-" + name), v = s[group.kind][name];
+      if (group.reg) row.querySelector("b").textContent = v;
+      else row.classList.toggle("on", !!v);
+    }
+  }
+
+  // local panel
+  $("estop").classList.toggle("pressed", s.panel.estop);
+  $("estop").setAttribute("aria-pressed", s.panel.estop);
+  $("key").classList.toggle("remote", s.panel.remote);
+  $("key").setAttribute("aria-pressed", s.panel.remote);
+  $("key-local").classList.toggle("on", !s.panel.remote);
+  $("key-remote").classList.toggle("on", s.panel.remote);
+  $("door-btn").textContent = s.panel.door_closed ? "Open guard door" : "Close guard door";
+  $("door-btn").classList.toggle("warn", !s.panel.door_closed);
+
+  // robot controller
+  setLamp("c-ready", inp.ROBOT_READY); setLamp("c-busy", inp.ROBOT_BUSY); setLamp("c-done", inp.ROBOT_DONE);
+  setLamp("c-home", inp.ROBOT_AT_HOME); setLamp("c-fault", inp.ROBOT_FAULT);
+  const h = s.holding;
+  $("r-target").textContent = h.ROBOT_TARGET; $("r-target-name").textContent = posName(h.ROBOT_TARGET, rb.pattern);
+  $("r-pos").textContent = s.registers.ROBOT_POS; $("r-pos-name").textContent = posName(s.registers.ROBOT_POS, rb.pattern);
+  $("r-speed").textContent = h.ROBOT_SPEED; $("r-speed-used").textContent = `→ moves at ${rb.speed} %`;
+  $("r-pattern").textContent = h.PATTERN; $("r-pattern-used").textContent = `→ ${rb.pattern} per carton`;
+  $("r-vacuum").textContent = !co.VACUUM_ON ? "off" : inp.VACUUM_OK ? "holding a product" : s.faults.vacuum_leak ? "on, leaking" : rb.vacuum > 0 ? "building up…" : "on, nothing to hold";
+  $("r-fault").textContent = rb.fault || "none";
+  const notes = $("notes"); notes.replaceChildren();
+  const all = [...s.notes];
+  if (rb.not_ready && !rb.fault && !all.some(n => n.startsWith("Move paused"))) all.push("Not ready: " + rb.not_ready);
+  for (const n of all) { const li = document.createElement("li"); li.textContent = n; notes.appendChild(li); }
+
+  // faults
+  for (const f in s.faults) {
+    const box = document.querySelector(`[data-fault="${f}"]`);
+    if (document.activeElement !== box) box.checked = s.faults[f];
+    $("tg-" + f).classList.toggle("active", s.faults[f]);
+  }
+  $("drop-btn").classList.toggle("armed", s.drop_next);
+  document.querySelectorAll("#next-defect button").forEach(b => b.classList.toggle("armed", +b.dataset.value === s.next_defect));
+  if (document.activeElement !== $("defects")) { $("defects").value = s.defect_rate; $("defects-out").textContent = Math.round(s.defect_rate) + " %"; }
+
+  // results
+  $("t-carton").textContent = s.pack ? `${s.pack.count}/${s.pack.pattern}` : "none";
+  $("t-shipped").textContent = s.score.shipped;
+  $("t-rate").textContent = s.per_minute;
+  const sc = s.score;
+  $("s-good").textContent = sc.packed_good; $("s-rej").textContent = sc.rejected_bad;
+  $("s-badpack").textContent = sc.packed_bad; $("s-goodrej").textContent = sc.rejected_good;
+  $("s-double").textContent = sc.double; $("s-short").textContent = sc.short; $("s-drop").textContent = sc.dropped;
+  const ev = $("events");
+  if (s.events.length) {
+    ev.replaceChildren(...s.events.map(t => { const li = document.createElement("li"); li.textContent = t; return li; }));
+  }
+}
+
+/* ---------- buzzer sound (only after you tick "sound") ---------- */
+let audio = null, osc = null;
+function buzzer(on) {
+  const want = on && $("sound").checked;
+  try {
+    if (want && !osc) {
+      audio = audio || new AudioContext();
+      osc = audio.createOscillator();
+      const gain = audio.createGain(); gain.gain.value = 0.04;
+      osc.type = "square"; osc.frequency.value = 880;
+      osc.connect(gain).connect(audio.destination); osc.start();
+    } else if (!want && osc) { osc.stop(); osc = null; }
+  } catch (e) { osc = null; }
+}
+
+/* ---------- controls ---------- */
+function wireControls() {
+  document.querySelectorAll("[data-hold]").forEach(btn => {
+    const name = btn.dataset.hold;
+    const down = e => { e.preventDefault(); btn.setPointerCapture?.(e.pointerId); btn.classList.add("held"); send({ cmd: "button", name, value: true }); };
+    const up = () => { if (!btn.classList.contains("held")) return; btn.classList.remove("held"); send({ cmd: "button", name, value: false }); };
+    btn.addEventListener("pointerdown", down);
+    btn.addEventListener("pointerup", up);
+    btn.addEventListener("pointercancel", up);
+    btn.addEventListener("lostpointercapture", up);
+    btn.addEventListener("keydown", e => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { btn.classList.add("held"); send({ cmd: "button", name, value: true }); } });
+    btn.addEventListener("keyup", e => { if (e.key === " " || e.key === "Enter") up(); });
+  });
+  window.addEventListener("blur", () => document.querySelectorAll("[data-hold].held").forEach(b => {
+    b.classList.remove("held"); send({ cmd: "button", name: b.dataset.hold, value: false });
+  }));
+  $("estop").addEventListener("click", () => send({ cmd: "estop", value: !$("estop").classList.contains("pressed") }));
+  $("key").addEventListener("click", () => S && send({ cmd: "remote", value: !S.panel.remote }));
+  $("door-btn").addEventListener("click", () => S && send({ cmd: "door", value: !S.panel.door_closed }));
+  document.querySelectorAll("[data-cmd]").forEach(btn => btn.addEventListener("click", () =>
+    send({ cmd: btn.dataset.cmd, value: btn.dataset.value === undefined ? true : btn.dataset.value })));
+  document.querySelectorAll("[data-fault]").forEach(box => box.addEventListener("change", () =>
+    send({ cmd: "fault", name: box.dataset.fault, value: box.checked })));
+  $("defects").addEventListener("input", () => { $("defects-out").textContent = $("defects").value + " %"; send({ cmd: "defect_rate", value: +$("defects").value }); });
+  $("sound").addEventListener("change", () => { if ($("sound").checked && audio) audio.resume(); });
+}
+
+async function poll() {
+  try {
+    const r = await fetch("/state", { cache: "no-store" });
+    render(await r.json());
+    $("offline").classList.remove("show");
+  } catch (e) {
+    $("offline").classList.add("show");
+    buzzer(false);
+  }
+  setTimeout(poll, 50);
+}
+
+(async function start() {
+  for (;;) {
+    try { G = await (await fetch("/geometry")).json(); break; }
+    catch (e) { $("offline").classList.add("show"); await new Promise(r => setTimeout(r, 1000)); }
+  }
+  buildStatic();
+  wireControls();
+  poll();
+})();
+</script>
+</body>
+</html>

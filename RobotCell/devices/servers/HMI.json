@@ -1,0 +1,24 @@
+{
+  "name": "HMI",
+  "protocol": "modbus-tcp",
+  "modbusSlaveConfig": {
+    "enabled": true,
+    "transports": [
+      "tcp"
+    ],
+    "networkInterface": "0.0.0.0",
+    "port": 1502,
+    "bufferMapping": {
+      "holdingRegisters": {
+        "qwCount": 16,
+        "mwCount": 32,
+        "mdCount": 0,
+        "mlCount": 0
+      },
+      "coils": {
+        "qxBits": 16,
+        "mxBits": 32
+      }
+    }
+  }
+}

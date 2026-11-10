@@ -1,0 +1,301 @@
+{
+  "name": "RobotIO",
+  "protocol": "modbus-tcp",
+  "modbusTcpConfig": {
+    "host": "host.docker.internal",
+    "port": 5022,
+    "timeout": 1000,
+    "slaveId": 1,
+    "ioGroups": [
+      {
+        "id": "15cd98ec-f81d-4256-b7ca-cde41c5bf632",
+        "name": "Inputs",
+        "functionCode": "2",
+        "cycleTime": 100,
+        "offset": "0",
+        "length": 17,
+        "errorHandling": "set-to-zero",
+        "ioPoints": [
+          {
+            "id": "Inputs_0",
+            "name": "Inputs_0",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX0.0",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_1",
+            "name": "Inputs_1",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX0.1",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_2",
+            "name": "Inputs_2",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX0.2",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_3",
+            "name": "Inputs_3",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX0.3",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_4",
+            "name": "Inputs_4",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX0.4",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_5",
+            "name": "Inputs_5",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX0.5",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_6",
+            "name": "Inputs_6",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX0.6",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_7",
+            "name": "Inputs_7",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX0.7",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_8",
+            "name": "Inputs_8",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX1.0",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_9",
+            "name": "Inputs_9",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX1.1",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_10",
+            "name": "Inputs_10",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX1.2",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_11",
+            "name": "Inputs_11",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX1.3",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_12",
+            "name": "Inputs_12",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX1.4",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_13",
+            "name": "Inputs_13",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX1.5",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_14",
+            "name": "Inputs_14",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX1.6",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_15",
+            "name": "Inputs_15",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX1.7",
+            "alias": ""
+          },
+          {
+            "id": "Inputs_16",
+            "name": "Inputs_16",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX2.0",
+            "alias": ""
+          }
+        ]
+      },
+      {
+        "id": "eff3b69c-43bf-471f-b193-f0341c25981a",
+        "name": "Registers",
+        "functionCode": "4",
+        "cycleTime": 100,
+        "offset": "0",
+        "length": 4,
+        "errorHandling": "set-to-zero",
+        "ioPoints": [
+          {
+            "id": "Registers_0",
+            "name": "Registers_0",
+            "type": "Analog Input (Input Register)",
+            "iecLocation": "%IW0",
+            "alias": ""
+          },
+          {
+            "id": "Registers_1",
+            "name": "Registers_1",
+            "type": "Analog Input (Input Register)",
+            "iecLocation": "%IW1",
+            "alias": ""
+          },
+          {
+            "id": "Registers_2",
+            "name": "Registers_2",
+            "type": "Analog Input (Input Register)",
+            "iecLocation": "%IW2",
+            "alias": ""
+          },
+          {
+            "id": "Registers_3",
+            "name": "Registers_3",
+            "type": "Analog Input (Input Register)",
+            "iecLocation": "%IW3",
+            "alias": ""
+          }
+        ]
+      },
+      {
+        "id": "17b27887-c02e-4a8d-82b6-5cf3dc523796",
+        "name": "Outputs",
+        "functionCode": "15",
+        "cycleTime": 100,
+        "offset": "0",
+        "length": 11,
+        "errorHandling": "keep-last-value",
+        "ioPoints": [
+          {
+            "id": "Outputs_0",
+            "name": "Outputs_0",
+            "type": "Digital Output (Multiple Coils)",
+            "iecLocation": "%QX0.0",
+            "alias": ""
+          },
+          {
+            "id": "Outputs_1",
+            "name": "Outputs_1",
+            "type": "Digital Output (Multiple Coils)",
+            "iecLocation": "%QX0.1",
+            "alias": ""
+          },
+          {
+            "id": "Outputs_2",
+            "name": "Outputs_2",
+            "type": "Digital Output (Multiple Coils)",
+            "iecLocation": "%QX0.2",
+            "alias": ""
+          },
+          {
+            "id": "Outputs_3",
+            "name": "Outputs_3",
+            "type": "Digital Output (Multiple Coils)",
+            "iecLocation": "%QX0.3",
+            "alias": ""
+          },
+          {
+            "id": "Outputs_4",
+            "name": "Outputs_4",
+            "type": "Digital Output (Multiple Coils)",
+            "iecLocation": "%QX0.4",
+            "alias": ""
+          },
+          {
+            "id": "Outputs_5",
+            "name": "Outputs_5",
+            "type": "Digital Output (Multiple Coils)",
+            "iecLocation": "%QX0.5",
+            "alias": ""
+          },
+          {
+            "id": "Outputs_6",
+            "name": "Outputs_6",
+            "type": "Digital Output (Multiple Coils)",
+            "iecLocation": "%QX0.6",
+            "alias": ""
+          },
+          {
+            "id": "Outputs_7",
+            "name": "Outputs_7",
+            "type": "Digital Output (Multiple Coils)",
+            "iecLocation": "%QX0.7",
+            "alias": ""
+          },
+          {
+            "id": "Outputs_8",
+            "name": "Outputs_8",
+            "type": "Digital Output (Multiple Coils)",
+            "iecLocation": "%QX1.0",
+            "alias": ""
+          },
+          {
+            "id": "Outputs_9",
+            "name": "Outputs_9",
+            "type": "Digital Output (Multiple Coils)",
+            "iecLocation": "%QX1.1",
+            "alias": ""
+          },
+          {
+            "id": "Outputs_10",
+            "name": "Outputs_10",
+            "type": "Digital Output (Multiple Coils)",
+            "iecLocation": "%QX1.2",
+            "alias": ""
+          }
+        ]
+      },
+      {
+        "id": "514280f8-d446-47a7-bdbe-5c0ff134a64c",
+        "name": "Holding",
+        "functionCode": "16",
+        "cycleTime": 100,
+        "offset": "0",
+        "length": 3,
+        "errorHandling": "keep-last-value",
+        "ioPoints": [
+          {
+            "id": "Holding_0",
+            "name": "Holding_0",
+            "type": "Analog Output (Multiple Registers)",
+            "iecLocation": "%QW0",
+            "alias": ""
+          },
+          {
+            "id": "Holding_1",
+            "name": "Holding_1",
+            "type": "Analog Output (Multiple Registers)",
+            "iecLocation": "%QW1",
+            "alias": ""
+          },
+          {
+            "id": "Holding_2",
+            "name": "Holding_2",
+            "type": "Analog Output (Multiple Registers)",
+            "iecLocation": "%QW2",
+            "alias": ""
+          }
+        ]
+      }
+    ]
+  }
+}
